@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="拉屎日记">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#4B352A">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>拉屎日记</title>
 <style>
 /* ── 变量 ─────────────────────────────── */
@@ -1369,45 +1373,96 @@ function renderProfile() {
   if (s.reminderTime) document.getElementById('reminder-time').value = s.reminderTime
 }
 
-function toggleReminder() {
+async function toggleReminder() {
   const s = getSettings()
   const enabled = !s.reminderEnabled
-  saveSettings({ reminderEnabled: enabled })
   if (enabled) {
-    Notification.requestPermission().then(p => {
-      const tip = document.getElementById('reminder-tip')
-      tip.style.display = p !== 'granted' ? 'block' : 'none'
-      scheduleReminder()
-    })
+    await subscribePush()
   } else {
-    if (reminderInterval) { clearInterval(reminderInterval); reminderInterval = null }
+    saveSettings({ reminderEnabled: false })
+    showReminderTip('提醒已关闭', false)
   }
   renderProfile()
 }
 
-function saveReminderTime() {
+async function saveReminderTime() {
   const t = document.getElementById('reminder-time').value
   saveSettings({ reminderTime: t })
-  scheduleReminder()
+  // 重新订阅更新时间
+  const s = getSettings()
+  if (s.reminderEnabled) await subscribePush()
 }
 
-function scheduleReminder() {
-  if (reminderInterval) clearInterval(reminderInterval)
-  const s = getSettings()
-  if (!s.reminderEnabled || !s.reminderTime) return
-  reminderInterval = setInterval(() => {
-    const now = new Date()
-    const hm = now.toTimeString().slice(0,5)
-    if (hm === s.reminderTime) {
-      const today = todayStr()
-      const records = getRecords()
-      const hasDone = records.some(r => r.date === today)
-      if (!hasDone && Notification.permission === 'granted') {
-        new Notification('拉屎日记', { body: '今天还没有记录，记得拉完记一下！' })
-      }
+async function subscribePush() {
+  const tip = document.getElementById('reminder-tip')
+  try {
+    // 注册 Service Worker
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showReminderTip('你的浏览器不支持推送通知', true)
+      return
     }
-  }, 30000)
+    const reg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+
+    // 请求通知权限
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      showReminderTip('请在浏览器设置中允许通知权限', true)
+      return
+    }
+
+    // 获取 VAPID 公钥
+    const keyResp = await fetch(AI_ENDPOINT.replace('/api/ai', '/api/push/vapid'))
+    const { publicKey } = await keyResp.json()
+
+    // 订阅推送
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    })
+
+    // 生成用户唯一ID
+    let userId = localStorage.getItem('poop_user_id')
+    if (!userId) {
+      userId = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2)
+      localStorage.setItem('poop_user_id', userId)
+    }
+
+    const t = document.getElementById('reminder-time')?.value || '08:00'
+
+    // 发送订阅到服务器
+    await fetch(AI_ENDPOINT.replace('/api/ai', '/api/push/subscribe'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription, reminderTime: t, userId })
+    })
+
+    saveSettings({ reminderEnabled: true, reminderTime: t })
+    showReminderTip('✓ 提醒已开启，每天 ' + t + ' 推送', false)
+  } catch(e) {
+    console.error(e)
+    showReminderTip('开启失败：' + e.message, true)
+  }
+  renderProfile()
 }
+
+function showReminderTip(msg, isWarn) {
+  const tip = document.getElementById('reminder-tip')
+  if (!tip) return
+  tip.style.display = 'block'
+  tip.style.background = isWarn ? 'var(--or-l)' : 'var(--gr-l)'
+  tip.style.color = isWarn ? 'var(--br)' : '#2A3D1E'
+  tip.textContent = msg
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)))
+}
+
+function scheduleReminder() {} // 已由 PWA 推送替代
 
 function exportCSV() {
   const records = getRecords()
@@ -1460,7 +1515,10 @@ function bristolSVG(type) {
 // ═══════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   renderHome()
-  scheduleReminder()
+  // 注册 Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW:', e))
+  }
 })
 </script>
 </body>

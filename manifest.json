@@ -1,0 +1,14 @@
+{
+  "name": "拉屎日记",
+  "short_name": "拉屎日记",
+  "description": "记录每日排便，守护肠道健康",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5EDE8",
+  "theme_color": "#4B352A",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

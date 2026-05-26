@@ -1,7 +1,13 @@
 {
   "functions": {
-    "api/ai.js": {
-      "maxDuration": 60
+    "api/ai.js": { "maxDuration": 60 },
+    "api/push.js": { "maxDuration": 30 },
+    "api/cron.js": { "maxDuration": 30 }
+  },
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "* * * * *"
     }
-  }
+  ]
 }
