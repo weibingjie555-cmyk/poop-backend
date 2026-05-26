@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>拉屎日记</title>
+<style>
+/* ── 变量 ─────────────────────────────── */
+:root {
+  --br: #4B352A;
+  --or: #CA7842;
+  --gr: #B2CD9C;
+  --ye: #F0F2BD;
+  --br-l: #F5EDE8;
+  --or-l: #FAE8D6;
+  --gr-l: #EBF3E2;
+  --ye-l: #FAFBE8;
+  --br-m: #7A5A4A;
+  --muted: #A8907E;
+  --divider: #EDE0D8;
+  --bg: #FAF6F2;
+  --page: #F5EDE8;
+  --danger: #C9614A;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── 重置 ─────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--page); }
+body { font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif; color: var(--br); font-size: 15px; }
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+input, textarea, select { font-family: inherit; outline: none; border: none; background: none; }
+
+/* ── 应用容器 ─────────────────────────── */
+#app {
+  width: 100%;
+  max-width: 430px;
+  height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--page);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── 页面容器 ─────────────────────────── */
+.page {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(64px + var(--safe-bottom));
+}
+.page.active { display: block; }
+
+/* ── 顶部导航 ─────────────────────────── */
+.navbar {
+  height: 52px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 0.5px solid var(--divider);
+  position: relative;
+  flex-shrink: 0;
+}
+.navbar-title { font-size: 17px; font-weight: 500; color: var(--br); }
+.navbar-back {
+  position: absolute; left: 16px;
+  font-size: 15px; color: var(--or);
+  display: flex; align-items: center; gap: 2px;
+  cursor: pointer;
+}
+
+/* ── 底部 tabbar ──────────────────────── */
+.tabbar {
+  height: calc(56px + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--bg);
+  border-top: 0.5px solid var(--divider);
+  display: flex;
+  flex-shrink: 0;
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  transition: color 0.15s;
+  position: relative;
+}
+.tab-item.active { color: var(--or); }
+.tab-item svg { width: 24px; height: 24px; }
+.tab-record-circle {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--or);
+  display: flex; align-items: center; justify-content: center;
+  margin-top: -18px;
+  border: 3px solid var(--bg);
+  flex-shrink: 0;
+}
+.tab-record-circle svg { width: 22px; height: 22px; stroke: #3A1F0E; }
+.tab-record-lbl { font-size: 11px; color: var(--or); font-weight: 500; }
+
+/* ── 通用组件 ─────────────────────────── */
+.card { background: var(--bg); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.section { padding: 0 16px; margin-bottom: 4px; }
+.section-title { font-size: 13px; color: var(--br-m); font-weight: 500; margin-bottom: 8px; }
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--or); color: #3A1F0E;
+  border-radius: 12px; font-size: 16px; font-weight: 500;
+  text-align: center; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-primary:active { opacity: 0.85; }
+.badge {
+  display: inline-block; font-size: 11px;
+  padding: 2px 8px; border-radius: 99px; font-weight: 500;
+}
+.badge-good { background: var(--gr); color: #2A3D1E; }
+.badge-warn { background: var(--ye); color: #3D3D1A; }
+.badge-danger { background: var(--or-l); color: var(--br); }
+.divider-line { height: 0.5px; background: var(--divider); }
+.form-field { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+.form-label { font-size: 12px; color: var(--br-m); margin-bottom: 3px; }
+.form-value { font-size: 15px; color: var(--br); display: flex; justify-content: space-between; align-items: center; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.page-pad { padding-top: 14px; }
+
+/* ── 首页 ─────────────────────────────── */
+.banner-miss { margin: 12px 16px 10px; border-radius: 14px; overflow: hidden; }
+.banner-miss-top {
+  background: var(--or); padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.banner-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(58,31,14,0.15);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 20px; color: #3A1F0E;
+}
+.banner-miss-title { font-size: 15px; font-weight: 500; color: #3A1F0E; }
+.banner-miss-sub { font-size: 12px; color: #5A3010; margin-top: 2px; }
+.banner-miss-btn {
+  display: block; width: 100%;
+  background: var(--br); color: var(--br-l);
+  padding: 11px; font-size: 14px; font-weight: 500;
+  text-align: center; cursor: pointer;
+}
+.banner-done {
+  margin: 12px 16px 10px; border-radius: 14px;
+  background: var(--gr-l); padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.banner-done-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--gr); display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; font-size: 20px; color: #2A3D1E;
+}
+.banner-done-title { font-size: 15px; font-weight: 500; color: #2A3D1E; }
+.banner-done-sub { font-size: 12px; color: #3B6D11; margin-top: 2px; }
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 0 16px 10px; }
+.stat-card { background: var(--bg); border-radius: 12px; padding: 10px 12px; text-align: center; }
+.stat-val { font-size: 22px; font-weight: 500; color: var(--br); }
+.stat-lbl { font-size: 11px; color: var(--br-m); margin-top: 2px; }
+.record-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--divider); }
+.record-item:last-child { border-bottom: none; padding-bottom: 0; }
+.record-dot { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; flex-shrink: 0; }
+.dot-good { background: var(--gr); color: #2A3D1E; }
+.dot-warn { background: var(--ye); color: #3D3D1A; }
+.dot-neutral { background: var(--br-l); color: var(--br); }
+.record-main { font-size: 14px; font-weight: 500; color: var(--br); }
+.record-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; padding-bottom: 22px; position: relative; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.bar { width: 100%; border-radius: 3px 3px 0 0; background: #DDD0C8; transition: height 0.3s ease; min-height: 3px; }
+.bar.active { background: var(--or); }
+.bar-lbl { font-size: 10px; color: var(--br-m); }
+.empty-state { padding: 40px 0; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* ── 记录页 ─────────────────────────────── */
+.bristol-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 16px 8px; margin-bottom: 10px; }
+.bristol-scroll::-webkit-scrollbar { display: none; }
+.bristol-list { display: flex; gap: 8px; width: max-content; }
+.bristol-card {
+  width: 76px; border-radius: 12px; padding: 8px 6px 10px;
+  background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; gap: 4px; cursor: pointer;
+  border: 1.5px solid transparent; transition: all 0.15s;
+  flex-shrink: 0;
+}
+.bristol-card.selected { border-color: var(--or); background: var(--or-l); }
+.bristol-art { width: 52px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.bristol-name { font-size: 12px; font-weight: 500; color: var(--br); }
+.bristol-card.selected .bristol-name { color: var(--or); }
+.bristol-desc { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.bristol-card.selected .bristol-desc { color: var(--br-m); }
+.ideal-tag { font-size: 9px; background: var(--or); color: #3A1F0E; border-radius: 99px; padding: 1px 6px; font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 6px 14px; border-radius: 99px; font-size: 13px;
+  border: 0.5px solid var(--divider); background: var(--bg);
+  color: var(--br-m); cursor: pointer; transition: all 0.15s;
+}
+.chip.on { background: var(--gr-l); border-color: var(--gr); color: #2A3D1E; }
+.chip.danger { border-color: var(--danger); color: var(--danger); }
+.timer-row { display: flex; align-items: center; gap: 8px; }
+.timer-display { font-size: 15px; color: var(--or); font-weight: 500; flex: 1; }
+.timer-btn {
+  background: var(--or-l); border-radius: 8px;
+  padding: 4px 10px; font-size: 12px; color: var(--or); font-weight: 500; cursor: pointer;
+}
+.notes-wrap { position: relative; }
+.notes-input {
+  width: 100%; min-height: 70px; font-size: 14px;
+  color: var(--br); line-height: 1.6; resize: none;
+  display: block;
+}
+.notes-count { text-align: right; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.required { color: var(--danger); font-size: 12px; margin-left: 6px; }
+
+/* ── 分析页 ─────────────────────────────── */
+.rating-card { border-radius: 14px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.rating-score { font-size: 40px; font-weight: 500; color: var(--br); }
+.rating-desc { font-size: 13px; color: var(--br-m); margin-top: 2px; }
+.rating-type { font-size: 13px; color: var(--br-m); text-align: right; }
+.rating-time { font-size: 12px; color: var(--muted); margin-top: 4px; text-align: right; }
+.analyzing-wrap { display: flex; align-items: center; gap: 10px; padding: 20px; }
+.analyzing-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--or); animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+.list-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid var(--divider); }
+.list-item:last-child { border-bottom: none; }
+.list-num { width: 20px; height: 20px; border-radius: 50%; background: var(--or-l); color: var(--or); font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.list-text { font-size: 14px; color: var(--br); line-height: 1.6; flex: 1; }
+.card-label { font-size: 13px; font-weight: 500; color: var(--br-m); margin-bottom: 8px; display: block; }
+.card-body { font-size: 14px; color: var(--br); line-height: 1.7; }
+.safe-card { background: var(--gr-l); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.doctor-banner { background: var(--or-l); border-left: 4px solid var(--or); border-radius: 0 12px 12px 0; padding: 12px 16px; margin-bottom: 10px; }
+.doctor-title { font-size: 14px; font-weight: 500; color: var(--br); }
+.doctor-desc { font-size: 13px; color: var(--br-m); margin-top: 4px; line-height: 1.5; }
+.detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 0.5px solid var(--divider); }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { font-size: 13px; color: var(--muted); }
+.detail-value { font-size: 13px; color: var(--br); text-align: right; flex: 1; margin-left: 16px; }
+.disclaimer { text-align: center; font-size: 11px; color: var(--muted); padding: 12px 0; }
+
+/* ── 历史页 ─────────────────────────────── */
+.date-group { padding-top: 12px; }
+.date-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; margin-bottom: 8px; }
+.date-label { font-size: 13px; font-weight: 500; color: var(--br-m); }
+.date-count { font-size: 12px; color: var(--muted); }
+.history-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--divider); cursor: pointer; }
+.history-item:last-child { border-bottom: none; }
+.del-btn { width: 28px; height: 28px; border-radius: 50%; background: var(--br-l); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 16px; color: var(--muted); }
+
+/* ── 我的页 ─────────────────────────────── */
+.profile-header { padding: 20px 16px 16px; display: flex; align-items: center; gap: 14px; }
+.avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--or-l); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 500; color: var(--or); }
+.profile-name { font-size: 17px; font-weight: 500; color: var(--br); }
+.profile-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 0.5px solid var(--divider); }
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 15px; color: var(--br); }
+.setting-val { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.setting-val.link { color: var(--or); }
+.setting-val.red { color: var(--danger); }
+.toggle { width: 48px; height: 28px; border-radius: 99px; background: #ccc; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--or); }
+.toggle-knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: white; transition: transform 0.2s; }
+.toggle.on .toggle-knob { transform: translateX(20px); }
+.reminder-tip { background: var(--ye-l); border-radius: 10px; padding: 10px 14px; margin-top: 8px; font-size: 12px; color: var(--br-m); }
+
+.cal-wrap{padding:0 16px;margin-bottom:8px;margin-top:12px;}
+.cal-card{background:var(--bg);border-radius:14px;padding:12px 8px 16px;overflow:hidden;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:0 8px 12px;}
+.cal-title{font-size:16px;font-weight:500;color:var(--br);}
+.cal-nav{width:30px;height:30px;border-radius:50%;border:0.5px solid var(--divider);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--br-m);line-height:1;}
+.cal-row{display:table;width:100%;table-layout:fixed;}
+.cal-cell{display:table-cell;width:14.2857%;text-align:center;vertical-align:middle;}
+.cal-weekday{font-size:11px;color:var(--muted);padding:4px 0 8px;}
+.cal-day-wrap{padding:2px 0;}
+.cal-day-inner{width:32px;height:36px;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:8px;cursor:pointer;}
+.cal-day-inner.selected{background:var(--or);}
+.cal-day-inner.today .cal-num{color:var(--or);font-weight:700;}
+.cal-day-inner.selected .cal-num{color:white!important;}
+.cal-day-inner.selected .cal-dot{background:rgba(255,255,255,0.85)!important;}
+.cal-num{font-size:14px;color:var(--br-m);line-height:1;}
+.cal-day-inner.has-rec .cal-num{color:var(--br);font-weight:500;}
+.cal-day-inner.other-month .cal-num{color:#D4C4BA;}
+.cal-dot{width:5px;height:5px;border-radius:50%;}
+.dot-g{background:#7AAE6A;}
+.dot-y{background:#C8B840;}
+.dot-o{background:var(--or);}
+.dot-n{background:var(--muted);opacity:0.5;}
+.cal-legend{display:flex;gap:14px;padding:10px 8px 0;flex-wrap:wrap;}
+.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--br-m);}
+.cal-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.cal-day-detail-title{font-size:13px;font-weight:500;color:var(--br-m);padding:10px 0 6px;border-bottom:0.5px solid var(--divider);margin-bottom:2px;}
+/* ── 加载/空状态 ─────────────────────────── */
+.loading-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 12px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══ 首页 ══════════════════════════════ -->
+  <div id="page-home" class="page active">
+    <div class="navbar"><span class="navbar-title">拉屎日记</span></div>
+
+    <!-- banner 动态渲染 -->
+    <div id="home-banner"></div>
+
+    <!-- 统计 -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="stat-week">0</div><div class="stat-lbl">本周次数</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-streak">0天</div><div class="stat-lbl">连续打卡</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-score">--</div><div class="stat-lbl">本月评分</div></div>
+    </div>
+
+    <div class="section" style="margin-bottom:14px;">
+      <button class="btn-primary" onclick="goPage('record')">+ 记录这一次</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">最近记录</div>
+      <div class="card" id="home-recent" style="padding:4px 16px;"></div>
+    </div>
+
+    <div class="section" style="margin-top:4px;">
+      <div class="section-title">本周形态分布</div>
+      <div class="card">
+        <div class="bar-chart" id="home-chart"></div>
+      </div>
+    </div>
+    <div style="height:16px;"></div>
+  </div>
+
+  <!-- ═══ 记录页 ════════════════════════════ -->
+  <div id="page-record" class="page">
+    <div class="navbar">
+      <span class="navbar-back" onclick="goPage('home')">‹ 首页</span>
+      <span class="navbar-title">新建记录</span>
+    </div>
+    <div class="page-pad">
+      <div class="section">
+        <div class="form-row">
+          <div class="form-field">
+            <div class="form-label">日期</div>
+            <input type="date" id="rec-date" style="font-size:15px;color:var(--br);width:100%;"/>
+          </div>
+          <div class="form-field">
+            <div class="form-label">时间</div>
+            <input type="time" id="rec-time" style="font-size:15px;color:var(--br);width:100%;"/>
+          </div>
+        </div>
+        <div class="section-title">大便形态 <span class="required">必填</span></div>
+      </div>
+
+      <!-- 布里斯托选型 -->
+      <div class="bristol-scroll">
+        <div class="bristol-list" id="bristol-list"></div>
+      </div>
+
+      <div class="section">
+        <div class="form-row">
+          <div class="form-field" onclick="showPicker('location')">
+            <div class="form-label">地点</div>
+            <div class="form-value"><span id="val-location">家里</span><span style="color:var(--muted)">›</span></div>
+          </div>
+          <div class="form-field" onclick="showPicker('color')">
+            <div class="form-label">颜色</div>
+            <div class="form-value"><span id="val-color">棕色</span><span style="color:var(--muted)">›</span></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field" onclick="showPicker('smell')">
+            <div class="form-label">气味</div>
+            <div class="form-value"><span id="val-smell">正常</span><span style="color:var(--muted)">›</span></div>
+          </div>
+          <div class="form-field">
+            <div class="form-label">时长</div>
+            <div class="timer-row">
+              <span class="timer-display" id="timer-display">--</span>
+              <div class="timer-btn" id="timer-btn" onclick="toggleTimer()">计时</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">伴随感受</div>
+        <div class="card" style="margin-bottom:12px;">
+          <div class="chips" id="feelings-chips"></div>
+        </div>
+
+        <div class="section-title">备注</div>
+        <div class="card notes-wrap" style="margin-bottom:16px;">
+          <textarea class="notes-input" id="rec-notes" placeholder="今天感觉如何？（选填）" maxlength="200" oninput="updateNotesCount()"></textarea>
+          <div class="notes-count"><span id="notes-count">0</span>/200</div>
+        </div>
+
+        <button class="btn-primary" id="submit-btn" onclick="submitRecord()">提交并获取 AI 分析</button>
+        <div style="height:20px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 分析页 ════════════════════════════ -->
+  <div id="page-analysis" class="page">
+    <div class="navbar">
+      <span class="navbar-back" id="analysis-back" onclick="goBack()">‹ 返回</span>
+      <span class="navbar-title">AI 健康分析</span>
+    </div>
+    <div id="analysis-content" class="page-pad section"></div>
+  </div>
+
+  <!-- ═══ 屎历页 ════════════════════════════ -->
+  <div id="page-history" class="page">
+    <div class="navbar"><span class="navbar-title">屎历</span></div>
+    <!-- 日历区域 -->
+    <div class="cal-wrap">
+      <div class="cal-card">
+        <div class="cal-header">
+          <div class="cal-nav" onclick="calPrevMonth()">‹</div>
+          <div class="cal-title" id="cal-title"></div>
+          <div class="cal-nav" onclick="calNextMonth()">›</div>
+        </div>
+        <div id="cal-body"></div>
+        <div class="cal-legend">
+          <div class="cal-legend-item"><div class="cal-legend-dot dot-g"></div>优/良</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot dot-y"></div>注意</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot dot-o"></div>警告</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot dot-n"></div>无评分</div>
+        </div>
+      </div>
+    </div>
+    <!-- 选中日期的记录详情 -->
+    <div id="cal-day-detail" style="padding:0 16px;display:none;"></div>
+    <!-- 健康小知识（固定位置，不受记录列表影响） -->
+    <div style="padding:0 16px 8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:500;color:var(--br-m);">本周健康小知识</div>
+        <div id="tip-refresh-btn" onclick="refreshHealthTip()" style="font-size:12px;color:var(--or);cursor:pointer;">换一条</div>
+      </div>
+      <div id="health-tip-card" style="background:var(--bg);border-radius:14px;padding:16px;">
+        <div id="health-tip-icon" style="font-size:22px;margin-bottom:8px;">🌿</div>
+        <div id="health-tip-title" style="font-size:14px;font-weight:500;color:var(--br);margin-bottom:6px;"> </div>
+        <div id="health-tip-body" style="font-size:13px;color:var(--br-m);line-height:1.7;"></div>
+        <div id="health-tip-loading" style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--or);animation:pulse 1.2s infinite;"></div>
+          <span style="font-size:13px;color:var(--muted);">AI 生成中...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分组列表 -->
+    <div id="history-content"></div>
+    <div style="height:20px;"></div>
+  </div>
+
+  <!-- ═══ 我的页 ════════════════════════════ -->
+  <div id="page-profile" class="page">
+    <div class="navbar"><span class="navbar-title">我的</span></div>
+    <div class="profile-header">
+      <div class="avatar">我</div>
+      <div>
+        <div class="profile-name">用户</div>
+        <div class="profile-sub">累计记录 <span id="total-count">0</span> 次</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">提醒设置</div>
+      <div class="card" style="padding:0 16px;">
+        <div class="setting-row">
+          <span class="setting-label">每日提醒</span>
+          <div class="toggle" id="reminder-toggle" onclick="toggleReminder()"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-row" id="reminder-time-row" style="display:none;">
+          <span class="setting-label">提醒时间</span>
+          <input type="time" id="reminder-time" value="08:00" onchange="saveReminderTime()" style="font-size:14px;color:var(--or);text-align:right;"/>
+        </div>
+      </div>
+      <div class="reminder-tip" id="reminder-tip" style="display:none;">浏览器通知权限未开启，提醒可能无法显示</div>
+    </div>
+    <div class="section" style="margin-top:4px;">
+      <div class="section-title">数据管理</div>
+      <div class="card" style="padding:0 16px;">
+        <div class="setting-row" onclick="exportCSV()" style="cursor:pointer;">
+          <span class="setting-label">导出记录</span>
+          <span class="setting-val link">CSV ›</span>
+        </div>
+        <div class="setting-row" onclick="clearData()" style="cursor:pointer;">
+          <span class="setting-label">清除所有数据</span>
+          <span class="setting-val red">清除 ›</span>
+        </div>
+      </div>
+    </div>
+    <div class="section" style="margin-top:4px;">
+      <div class="section-title">关于</div>
+      <div class="card" style="padding:0 16px;">
+        <div class="setting-row">
+          <span class="setting-label">版本</span>
+          <span class="setting-val">v1.0.0</span>
+        </div>
+        <div class="setting-row" onclick="showPrivacy()" style="cursor:pointer;">
+          <span class="setting-label">隐私说明</span>
+          <span class="setting-val">›</span>
+        </div>
+      </div>
+    </div>
+    <div style="height:20px;"></div>
+  </div>
+
+  <!-- ═══ tabbar ═══════════════════════════ -->
+  <div class="tabbar">
+    <div class="tab-item active" id="tab-home" onclick="switchTab('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>首页</span>
+    </div>
+    <div class="tab-item" id="tab-record" onclick="switchTab('record')">
+      <div class="tab-record-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+      <span class="tab-record-lbl">记录</span>
+    </div>
+    <div class="tab-item" id="tab-history" onclick="switchTab('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span>屎历</span>
+    </div>
+    <div class="tab-item" id="tab-profile" onclick="switchTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>我的</span>
+    </div>
+  </div>
+
+  <!-- ═══ Picker 弹窗 ═══════════════════════ -->
+  <div id="picker-mask" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;" onclick="closePicker()">
+    <div id="picker-panel" style="position:absolute;bottom:0;left:0;right:0;background:var(--bg);border-radius:16px 16px 0 0;padding:16px 0 24px;" onclick="event.stopPropagation()">
+      <div style="text-align:center;font-size:15px;font-weight:500;color:var(--br);padding:0 0 12px;">请选择</div>
+      <div id="picker-options"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 常量
+// ═══════════════════════════════════════════════════
+const BRISTOL = [
+  {type:1, name:'硬球型', desc:'严重便秘'},
+  {type:2, name:'腊肠型', desc:'轻度便秘'},
+  {type:3, name:'裂纹型', desc:'正常偏干'},
+  {type:4, name:'香蕉型', desc:'理想状态', ideal:true},
+  {type:5, name:'软块型', desc:'正常偏软'},
+  {type:6, name:'糊状型', desc:'轻度腹泻'},
+  {type:7, name:'水状型', desc:'严重腹泻'}
+]
+const LOCATIONS = ['家里','公司','学校','商场','餐厅','户外','其他（自填）']
+const COLORS = ['棕色','黄色','绿色','黑色','红色','灰白色']
+const SMELLS = ['正常','较臭','极臭','无味']
+const FEELINGS = ['顺畅','费力','疼痛','残便感','带血']
+const DANGER_COLORS = ['黑色','灰白色','红色']
+const AI_RATINGS = {
+  excellent:{label:'优', bg:'#EBF3E2'},
+  good:{label:'良', bg:'#EBF3E2'},
+  attention:{label:'注意', bg:'#FAFBE8'},
+  warning:{label:'警告', bg:'#FAE8D6'}
+}
+const AI_ENDPOINT = 'https://poop-backend-three.vercel.app/api/ai'
+
+// ═══════════════════════════════════════════════════
+// 状态
+// ═══════════════════════════════════════════════════
+let currentPage = 'home'
+let previousPage = 'home'
+let recState = { bristolType:null, location:'家里', color:'棕色', smell:'正常', feelings:[], timing:false, timerSec:0, timerInterval:null }
+let currentPickerKey = null
+let currentAnalysisId = null
+let reminderInterval = null
+
+// ═══════════════════════════════════════════════════
+// 数据库（localStorage）
+// ═══════════════════════════════════════════════════
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem('poop_records') || '[]') } catch { return [] }
+}
+function saveRecords(records) {
+  localStorage.setItem('poop_records', JSON.stringify(records))
+}
+function addRecord(rec) {
+  const records = getRecords()
+  records.unshift(rec)
+  saveRecords(records)
+  return rec
+}
+function deleteRecord(id) {
+  saveRecords(getRecords().filter(r => r.id !== id))
+}
+function getSettings() {
+  try { return JSON.parse(localStorage.getItem('poop_settings') || '{}') } catch { return {} }
+}
+function saveSettings(s) {
+  localStorage.setItem('poop_settings', JSON.stringify({...getSettings(), ...s}))
+}
+
+// ═══════════════════════════════════════════════════
+// 日期工具
+// ═══════════════════════════════════════════════════
+function todayStr() { return new Date().toISOString().slice(0,10) }
+function nowTimeStr() { return new Date().toTimeString().slice(0,5) }
+function offsetDate(d, n) {
+  const dt = new Date(d + 'T12:00:00')
+  dt.setDate(dt.getDate() + n)
+  return dt.toISOString().slice(0,10)
+}
+function formatDateLabel(date, time) {
+  const t = todayStr()
+  if (date === t) return `今天 ${time}`
+  if (date === offsetDate(t,-1)) return `昨天 ${time}`
+  return `${date.slice(5).replace('-','/')} ${time}`
+}
+function getWeekStart() {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const start = new Date(now)
+  start.setDate(now.getDate() - day + 1)
+  return start.toISOString().slice(0,10)
+}
+
+// ═══════════════════════════════════════════════════
+// 页面导航
+// ═══════════════════════════════════════════════════
+function switchTab(name) {
+  previousPage = currentPage
+  goPage(name)
+  // 更新 tab 状态
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'))
+  const tab = document.getElementById('tab-' + name)
+  if (tab) tab.classList.add('active')
+}
+
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.getElementById('page-' + name).classList.add('active')
+  previousPage = currentPage
+  currentPage = name
+  if (name === 'home') renderHome()
+  if (name === 'record') initRecord()
+  if (name === 'history') renderHistory()
+  if (name === 'profile') renderProfile()
+}
+
+function goBack() {
+  goPage(previousPage || 'home')
+}
+
+// ═══════════════════════════════════════════════════
+// 首页
+// ═══════════════════════════════════════════════════
+function renderHome() {
+  const records = getRecords()
+  const today = todayStr()
+  const ws = getWeekStart()
+  const todayRecs = records.filter(r => r.date === today)
+  const weekRecs = records.filter(r => r.date >= ws && r.date <= today)
+
+  // banner
+  const banner = document.getElementById('home-banner')
+  if (todayRecs.length > 0) {
+    banner.innerHTML = `
+      <div class="banner-done">
+        <div class="banner-done-icon">✓</div>
+        <div>
+          <div class="banner-done-title">今天已打卡</div>
+          <div class="banner-done-sub">已记录 ${todayRecs.length} 次，肠道健康！</div>
+        </div>
+      </div>`
+  } else {
+    banner.innerHTML = `
+      <div class="banner-miss">
+        <div class="banner-miss-top">
+          <div class="banner-icon">!</div>
+          <div>
+            <div class="banner-miss-title">今天还没有记录</div>
+            <div class="banner-miss-sub">肠道在等你，记录一下吧</div>
+          </div>
+        </div>
+        <div class="banner-miss-btn" onclick="goPage('record')">立即记录</div>
+      </div>`
+  }
+
+  // 统计
+  document.getElementById('stat-week').textContent = weekRecs.length
+  // 连续天数
+  let streak = 0, cursor = today
+  const dateSet = new Set(records.map(r => r.date))
+  while (dateSet.has(cursor)) { streak++; cursor = offsetDate(cursor,-1) }
+  document.getElementById('stat-streak').textContent = streak + '天'
+  // 本月评分
+  const scoreMap = {excellent:95, good:80, attention:55, warning:30}
+  const scored = records.filter(r => r.aiAnalysis?.rating)
+  const score = scored.length ? Math.round(scored.slice(0,30).reduce((s,r) => s+(scoreMap[r.aiAnalysis.rating]||0),0)/Math.min(scored.length,30)) : '--'
+  document.getElementById('stat-score').textContent = score
+
+  // 最近记录
+  const recentEl = document.getElementById('home-recent')
+  const recent = records.slice(0,5)
+  if (recent.length === 0) {
+    recentEl.innerHTML = '<div class="empty-state">还没有记录，去厕所走一圈？</div>'
+  } else {
+    recentEl.innerHTML = recent.map((r,i) => {
+      const rating = r.aiAnalysis?.rating
+      const dotClass = ['excellent','good'].includes(rating) ? 'dot-good' : rating === 'attention' ? 'dot-warn' : 'dot-neutral'
+      const badgeHtml = rating ? `<span class="badge badge-${['excellent','good'].includes(rating)?'good':rating==='attention'?'warn':'danger'}">${AI_RATINGS[rating]?.label||''}</span>` : ''
+      const b = BRISTOL.find(b=>b.type===r.bristolType)
+      return `<div class="record-item" onclick="openAnalysis('${r.id}','home')" style="cursor:pointer;">
+        <div class="record-dot ${dotClass}" title="${BRISTOL.find(b=>b.type===r.bristolType)?.name||''}">${(BRISTOL.find(b=>b.type===r.bristolType)?.name||'').slice(0,2)}</div>
+        <div style="flex:1;">
+          <div class="record-main">${b?.name||''} · ${r.location||''}</div>
+          <div class="record-sub">${formatDateLabel(r.date,r.time)}</div>
+        </div>
+        ${badgeHtml}
+      </div>`
+    }).join('')
+  }
+
+  // 柱状图
+  const chart = document.getElementById('home-chart')
+  const typeCounts = Array(7).fill(0)
+  weekRecs.forEach(r => { if(r.bristolType>=1&&r.bristolType<=7) typeCounts[r.bristolType-1]++ })
+  const max = Math.max(...typeCounts, 1)
+  chart.innerHTML = typeCounts.map((c,i) => `
+    <div class="bar-col">
+      <div class="bar ${c>0?'active':''}" style="height:${Math.round(c/max*54)+4}px;"></div>
+      <div class="bar-lbl">${['硬球','腊肠','裂纹','香蕉','软块','糊状','水状'][i]}</div>
+    </div>`).join('')
+}
+
+// ═══════════════════════════════════════════════════
+// 记录页
+// ═══════════════════════════════════════════════════
+function initRecord() {
+  // 重置状态
+  recState = { bristolType:null, location:'家里', color:'棕色', smell:'正常', feelings:[], timing:false, timerSec:0, timerInterval:null }
+  document.getElementById('rec-date').value = todayStr()
+  document.getElementById('rec-time').value = nowTimeStr()
+  document.getElementById('val-location').textContent = '家里'
+  document.getElementById('val-color').textContent = '棕色'
+  document.getElementById('val-smell').textContent = '正常'
+  document.getElementById('rec-notes').value = ''
+  document.getElementById('notes-count').textContent = '0'
+  document.getElementById('timer-display').textContent = '--'
+  document.getElementById('timer-btn').textContent = '计时'
+  document.getElementById('submit-btn').textContent = '提交并获取 AI 分析'
+  document.getElementById('submit-btn').disabled = false
+
+  renderBristol()
+  renderFeelings()
+}
+
+function renderBristol() {
+  const list = document.getElementById('bristol-list')
+  list.innerHTML = BRISTOL.map(b => `
+    <div class="bristol-card ${recState.bristolType===b.type?'selected':''}" onclick="selectBristol(${b.type})" id="bc-${b.type}">
+      <div class="bristol-art">${bristolSVG(b.type)}</div>
+      <div class="bristol-name">${b.name}</div>
+      <div class="bristol-desc">${b.desc}</div>
+      ${b.ideal ? '<div class="ideal-tag">理想</div>' : ''}
+    </div>`).join('')
+}
+
+function selectBristol(type) {
+  recState.bristolType = type
+  document.querySelectorAll('.bristol-card').forEach(c => c.classList.remove('selected'))
+  document.getElementById('bc-' + type)?.classList.add('selected')
+}
+
+function renderFeelings() {
+  document.getElementById('feelings-chips').innerHTML = FEELINGS.map(f => `
+    <div class="chip ${recState.feelings.includes(f)?'on':''} ${f==='带血'?'danger':''}" onclick="toggleFeeling('${f}')">${f}</div>`).join('')
+}
+
+function toggleFeeling(f) {
+  const idx = recState.feelings.indexOf(f)
+  if (idx > -1) recState.feelings.splice(idx,1)
+  else recState.feelings.push(f)
+  renderFeelings()
+}
+
+function updateNotesCount() {
+  document.getElementById('notes-count').textContent = document.getElementById('rec-notes').value.length
+}
+
+// Picker
+function showPicker(key) {
+  currentPickerKey = key
+  const opts = key==='location'?LOCATIONS:key==='color'?COLORS:SMELLS
+  const cur = recState[key]
+  // 判断当前值是否是自定义值（不在选项列表里）
+  const isCustom = cur && !opts.includes(cur) && key==='location'
+  document.getElementById('picker-options').innerHTML = opts.map(o => {
+    const isOther = o === '其他（自填）'
+    const isSelected = isOther ? isCustom : o === cur
+    return `<div onclick="selectPicker('${isOther?'__other__':o}')" style="padding:14px 24px;font-size:16px;color:${isSelected?'var(--or)':'var(--br)'};font-weight:${isSelected?'500':'400'};border-bottom:0.5px solid var(--divider);cursor:pointer;">${o}</div>`
+  }).join('') + (key==='location' ? `
+    <div id="custom-location-wrap" style="display:${isCustom?'block':'none'};padding:8px 24px 16px;">
+      <input id="custom-location-input" type="text" placeholder="输入地点名称" maxlength="20"
+        value="${isCustom?cur:''}"
+        style="width:100%;padding:10px 14px;font-size:15px;color:var(--br);background:var(--br-l);border-radius:10px;border:none;outline:none;"
+        oninput="updateCustomLocation(this.value)"
+      />
+      <button onclick="confirmCustomLocation()" style="margin-top:10px;width:100%;padding:11px;background:var(--or);color:#3A1F0E;border:none;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;">确定</button>
+    </div>` : '')
+  document.getElementById('picker-mask').style.display = 'block'
+}
+function selectPicker(val) {
+  if (val === '__other__') {
+    // 显示自填输入框
+    document.getElementById('custom-location-wrap').style.display = 'block'
+    setTimeout(() => document.getElementById('custom-location-input')?.focus(), 100)
+    return
+  }
+  recState[currentPickerKey] = val
+  document.getElementById('val-' + currentPickerKey).textContent = val
+  closePicker()
+}
+function updateCustomLocation(val) {
+  recState.location = val
+}
+function confirmCustomLocation() {
+  const val = document.getElementById('custom-location-input').value.trim()
+  if (!val) return
+  recState.location = val
+  document.getElementById('val-location').textContent = val
+  closePicker()
+}
+function closePicker() {
+  document.getElementById('picker-mask').style.display = 'none'
+}
+
+// 计时器
+function toggleTimer() {
+  if (recState.timing) {
+    clearInterval(recState.timerInterval)
+    recState.timing = false
+    document.getElementById('timer-btn').textContent = '计时'
+    const mins = Math.max(1, Math.round(recState.timerSec/60))
+    document.getElementById('timer-display').textContent = mins + ' 分钟'
+    recState.duration = mins
+  } else {
+    recState.timing = true
+    recState.timerSec = 0
+    document.getElementById('timer-btn').textContent = '停止'
+    recState.timerInterval = setInterval(() => {
+      recState.timerSec++
+      const m = String(Math.floor(recState.timerSec/60)).padStart(2,'0')
+      const s = String(recState.timerSec%60).padStart(2,'0')
+      document.getElementById('timer-display').textContent = m + ':' + s
+    }, 1000)
+  }
+}
+
+async function submitRecord() {
+  if (!recState.bristolType) { alert('请选择大便形态'); return }
+  const btn = document.getElementById('submit-btn')
+  btn.textContent = '保存中...'
+  btn.disabled = true
+
+  const b = BRISTOL.find(b=>b.type===recState.bristolType)
+  const rec = {
+    id: Date.now().toString(),
+    createdAt: Date.now(),
+    date: document.getElementById('rec-date').value,
+    time: document.getElementById('rec-time').value,
+    bristolType: recState.bristolType,
+    bristolTypeName: b?.name || '',
+    location: recState.location,
+    color: recState.color,
+    smell: recState.smell,
+    duration: recState.duration || null,
+    feelings: [...recState.feelings],
+    notes: document.getElementById('rec-notes').value.trim(),
+    aiAnalysis: null
+  }
+  addRecord(rec)
+  openAnalysis(rec.id, 'record', true)
+}
+
+// ═══════════════════════════════════════════════════
+// 分析页
+// ═══════════════════════════════════════════════════
+function openAnalysis(id, from, isNew=false) {
+  previousPage = from
+  currentAnalysisId = id
+  currentPage = 'analysis'
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.getElementById('page-analysis').classList.add('active')
+  renderAnalysis(id, isNew)
+}
+
+async function renderAnalysis(id, isNew=false) {
+  const records = getRecords()
+  const rec = records.find(r => r.id === id)
+  if (!rec) { document.getElementById('analysis-content').innerHTML = '<div class="loading-page">记录不存在</div>'; return }
+
+  const b = BRISTOL.find(b=>b.type===rec.bristolType)
+
+  if (rec.aiAnalysis) {
+    renderAnalysisResult(rec, b)
+    return
+  }
+
+  // 显示加载中
+  document.getElementById('analysis-content').innerHTML = `
+    <div class="rating-card" style="background:var(--br-l);flex-direction:column;align-items:flex-start;gap:8px;">
+      <div class="analyzing-wrap">
+        <div class="analyzing-dot"></div>
+        <span style="font-size:14px;color:var(--br);">AI 分析中，请稍候...</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted);">Type${rec.bristolType} · ${b?.name} · ${rec.date} ${rec.time}</div>
+    </div>`
+
+  try {
+    const analysis = await callAI(rec, records)
+    // 写回 localStorage
+    const allRecs = getRecords()
+    const target = allRecs.find(r => r.id === id)
+    if (target) { target.aiAnalysis = analysis; saveRecords(allRecs) }
+    renderAnalysisResult({...rec, aiAnalysis: analysis}, b)
+  } catch(err) {
+    console.error(err)
+    if (err.message?.includes('401') || err.message?.includes('500')) {
+      showAnalysisFallback(rec, b, 'AI 服务暂时不可用，请稍后重试')
+    } else {
+      showAnalysisFallback(rec, b, 'AI 分析失败，记录已保存')
+    }
+  }
+}
+
+function renderAnalysisResult(rec, b) {
+  const a = rec.aiAnalysis
+  const rCfg = AI_RATINGS[a.rating] || AI_RATINGS.good
+  const isGood = ['excellent','good'].includes(a.rating)
+
+  let html = `
+    <div class="rating-card" style="background:${rCfg.bg};">
+      <div>
+        <div class="rating-score">${rCfg.label}</div>
+        <div class="rating-desc">${isGood?'肠道状态良好':a.rating==='attention'?'需要关注':'建议就医'}</div>
+      </div>
+      <div>
+        <div class="rating-type">Type${rec.bristolType} · ${b?.name}</div>
+        <div class="rating-time">${rec.date} ${rec.time}</div>
+      </div>
+    </div>`
+
+  if (a.see_doctor) {
+    html += `<div class="doctor-banner">
+      <div class="doctor-title">⚠ 建议就医</div>
+      <div class="doctor-desc">${a.see_doctor_reason || '本次记录存在异常，建议尽快就医检查。'}</div>
+    </div>`
+  }
+
+  html += `<div class="card">
+    <span class="card-label">主要发现</span>
+    <div class="card-body">${a.summary}</div>
+  </div>`
+
+  if (a.reasons?.length) {
+    html += `<div class="card"><span class="card-label">可能原因</span>${a.reasons.map((r,i)=>`<div class="list-item"><div class="list-num">${i+1}</div><div class="list-text">${r}</div></div>`).join('')}</div>`
+  }
+  if (a.suggestions?.length) {
+    html += `<div class="card"><span class="card-label">健康建议</span>${a.suggestions.map((s,i)=>`<div class="list-item"><div class="list-num">${i+1}</div><div class="list-text">${s}</div></div>`).join('')}</div>`
+  }
+  if (!a.see_doctor) {
+    html += `<div class="safe-card"><span style="color:#2A3D1E;font-size:16px;">✓</span><span style="font-size:13px;color:#2A3D1E;">暂无需就医</span></div>`
+  }
+
+  // 记录详情
+  html += `<div class="card">
+    <span class="card-label">本次记录</span>
+    <div class="detail-row"><span class="detail-label">形态</span><span class="detail-value">Type${rec.bristolType} ${b?.name}</span></div>
+    ${rec.location?`<div class="detail-row"><span class="detail-label">地点</span><span class="detail-value">${rec.location}</span></div>`:''}
+    ${rec.color?`<div class="detail-row"><span class="detail-label">颜色</span><span class="detail-value">${rec.color}</span></div>`:''}
+    ${rec.smell?`<div class="detail-row"><span class="detail-label">气味</span><span class="detail-value">${rec.smell}</span></div>`:''}
+    ${rec.duration?`<div class="detail-row"><span class="detail-label">时长</span><span class="detail-value">${rec.duration} 分钟</span></div>`:''}
+    ${rec.feelings?.length?`<div class="detail-row"><span class="detail-label">感受</span><span class="detail-value">${rec.feelings.join('、')}</span></div>`:''}
+    ${rec.notes?`<div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${rec.notes}</span></div>`:''}
+  </div>
+  <div class="disclaimer">由 AI 生成，仅供参考，不构成医疗诊断</div>
+  <div style="height:16px;"></div>`
+
+  document.getElementById('analysis-content').innerHTML = html
+}
+
+function showAnalysisFallback(rec, b, msg) {
+  document.getElementById('analysis-content').innerHTML = `
+    <div class="card" style="background:var(--ye-l);margin-bottom:10px;">
+      <div style="font-size:13px;color:var(--br-m);">${msg}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;">记录已保存，可在历史中查看</div>
+    </div>
+    <div class="card">
+      <span class="card-label">本次记录</span>
+      <div class="detail-row"><span class="detail-label">形态</span><span class="detail-value">Type${rec.bristolType} ${b?.name}</span></div>
+      <div class="detail-row"><span class="detail-label">时间</span><span class="detail-value">${rec.date} ${rec.time}</span></div>
+    </div>
+    <button class="btn-primary" onclick="renderAnalysis('${rec.id}',false)" style="margin-top:8px;">重新分析</button>
+    <div style="height:16px;"></div>`
+}
+
+// ═══════════════════════════════════════════════════
+// AI 调用
+// ═══════════════════════════════════════════════════
+async function callAI(rec, allRecords) {
+  const bristolDesc = {1:'硬球型（严重便秘）',2:'腊肠型（轻度便秘）',3:'裂纹型（正常偏干）',4:'香蕉型（理想状态）',5:'软块型（正常偏软）',6:'糊状型（轻度腹泻）',7:'水状型（严重腹泻）'}
+  const recent = allRecords.filter(r=>r.id!==rec.id).slice(0,7).map(r=>`${r.date} ${r.time}: Type${r.bristolType} ${r.color||''} ${r.feelings?.join('/')||''}`).join('\n') || '暂无'
+
+  const system = `你是专业肠道健康助理，基于布里斯托大便分类法分析排便健康。规则：1.基于数据分析不臆测；2.语气温和专业；3.带血/黑色/灰白色/Type7时must设see_doctor为true；4.建议具体可执行；5.只输出JSON不加任何额外字符。
+格式：{"rating":"excellent|good|attention|warning","summary":"1-2句发现","reasons":["原因1","原因2"],"suggestions":["建议1","建议2","建议3"],"see_doctor":false,"see_doctor_reason":""}`
+
+  const user = `本次记录：
+形态：Type${rec.bristolType} ${bristolDesc[rec.bristolType]}
+时间：${rec.date} ${rec.time}
+地点：${rec.location||'未填'}
+颜色：${rec.color||'未填'}
+气味：${rec.smell||'未填'}
+时长：${rec.duration?rec.duration+'分钟':'未记录'}
+感受：${rec.feelings?.length?rec.feelings.join('、'):'无'}
+备注：${rec.notes||'无'}
+近期记录：${recent}
+请分析。`
+
+  const resp = await fetch(AI_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      max_tokens: 800,
+      messages: [
+        {role:'system', content:system},
+        {role:'user', content:user}
+      ]
+    })
+  })
+
+  if (!resp.ok) throw new Error('HTTP ' + resp.status)
+  const data = await resp.json()
+  const text = (data.choices[0].message.content || '').replace(/```json|```/g,'').trim()
+  const parsed = JSON.parse(text)
+
+  // 前端强制就医校验
+  if (DANGER_COLORS.includes(rec.color) || rec.feelings?.includes('带血') || rec.bristolType===7) {
+    parsed.see_doctor = true
+    if (!parsed.see_doctor_reason) parsed.see_doctor_reason = rec.feelings?.includes('带血') ? '大便带血需及时就医' : `${rec.color||'异常'}大便可能提示消化道问题，建议就医`
+  }
+  return {...parsed, generatedAt: Date.now()}
+}
+
+
+// ═══════════════════════════════════════════════════
+// 日历
+// ═══════════════════════════════════════════════════
+let calYear = new Date().getFullYear()
+let calMonth = new Date().getMonth() // 0-based
+let calSelectedDate = null
+
+function renderCalendar() {
+  const records = getRecords()
+  const dateMap = {}
+  records.forEach(r => {
+    const rating = r.aiAnalysis?.rating
+    const prev = dateMap[r.date]
+    const priority = { warning:4, attention:3, good:2, excellent:1 }
+    if (!prev || (priority[rating]||0) > (priority[prev.rating]||0)) {
+      dateMap[r.date] = { rating, count: (prev?.count||0)+1 }
+    } else if (prev) { prev.count++ }
+  })
+
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+  document.getElementById('cal-title').textContent = calYear + '年 ' + months[calMonth]
+
+  const today = todayStr()
+  const firstDay = new Date(calYear, calMonth, 1).getDay()
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate()
+  const daysInPrev = new Date(calYear, calMonth, 0).getDate()
+  const WEEKDAYS = ['日','一','二','三','四','五','六']
+
+  let html = '<div class="cal-row">' + WEEKDAYS.map(d => `<div class="cal-cell"><div class="cal-weekday">${d}</div></div>`).join('') + '</div>'
+
+  let cells = []
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = daysInPrev - i
+    const m = calMonth === 0 ? 12 : calMonth
+    const y = calMonth === 0 ? calYear - 1 : calYear
+    cells.push({ d, dateStr: `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`, other: true })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ d, dateStr: `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`, other: false })
+  }
+  while (cells.length % 7 !== 0) {
+    const d = cells.length - (firstDay + daysInMonth) + 1
+    const m = calMonth === 11 ? 1 : calMonth + 2
+    const y = calMonth === 11 ? calYear + 1 : calYear
+    cells.push({ d, dateStr: `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`, other: true })
+  }
+
+  for (let row = 0; row < cells.length / 7; row++) {
+    html += '<div class="cal-row">'
+    for (let col = 0; col < 7; col++) {
+      const cell = cells[row * 7 + col]
+      const info = dateMap[cell.dateStr]
+      const hasRec = !!info
+      const r = info?.rating
+      const dotClass = r==='excellent'||r==='good' ? 'dot-g' : r==='attention' ? 'dot-y' : r==='warning' ? 'dot-o' : 'dot-n'
+      const innerClass = ['cal-day-inner', cell.other?'other-month':'', cell.dateStr===today?'today':'', hasRec?'has-rec':'', cell.dateStr===calSelectedDate?'selected':''].filter(Boolean).join(' ')
+      html += `<div class="cal-cell"><div class="cal-day-wrap"><div class="${innerClass}" onclick="selectCalDay('${cell.dateStr}')">
+        <span class="cal-num">${cell.d}</span>
+        ${hasRec ? `<div class="cal-dot ${dotClass}"></div>` : ''}
+      </div></div></div>`
+    }
+    html += '</div>'
+  }
+
+  document.getElementById('cal-body').innerHTML = html
+}
+
+function calPrevMonth() {
+  if (calMonth === 0) { calMonth = 11; calYear-- }
+  else calMonth--
+  calSelectedDate = null
+  document.getElementById('cal-day-detail').style.display = 'none'
+  renderCalendar()
+}
+
+function calNextMonth() {
+  if (calMonth === 11) { calMonth = 0; calYear++ }
+  else calMonth++
+  calSelectedDate = null
+  document.getElementById('cal-day-detail').style.display = 'none'
+  renderCalendar()
+}
+
+function selectCalDay(dateStr) {
+  if (calSelectedDate === dateStr) {
+    // 再点一次取消选中
+    calSelectedDate = null
+    document.getElementById('cal-day-detail').style.display = 'none'
+    renderCalendar()
+    return
+  }
+  calSelectedDate = dateStr
+  renderCalendar()
+
+  const records = getRecords().filter(r => r.date === dateStr)
+  const detail = document.getElementById('cal-day-detail')
+  if (records.length === 0) {
+    detail.style.display = 'none'
+    return
+  }
+
+  const label = dateStr === todayStr() ? '今天' : dateStr.slice(5).replace('-','/')
+  detail.style.display = 'block'
+  detail.innerHTML = `
+    <div class="card" style="padding:4px 16px;">
+      <div class="cal-day-detail-title">${label} · ${records.length} 条记录</div>
+      ${records.map((r,i) => {
+        const b = BRISTOL.find(b=>b.type===r.bristolType)
+        const rating = r.aiAnalysis?.rating
+        const dotClass = ['excellent','good'].includes(rating)?'dot-good':rating==='attention'?'dot-warn':rating==='warning'?'dot-warn':'dot-neutral'
+        const badgeHtml = rating ? `<span class="badge badge-${['excellent','good'].includes(rating)?'good':rating==='attention'?'warn':'danger'}">${AI_RATINGS[rating]?.label}</span>` : ''
+        return `<div class="history-item ${i===records.length-1?'':''}" onclick="openAnalysis('${r.id}','history')" style="cursor:pointer;">
+          <div class="record-dot ${dotClass}">${(b?.name||'').slice(0,2)}</div>
+          <div style="flex:1;">
+            <div class="record-main">${b?.name||''} · ${r.location||''}</div>
+            <div class="record-sub">${r.time}${r.color?' · '+r.color:''}${r.feelings?.length?' · '+r.feelings.join('/'):''}  </div>
+          </div>
+          ${badgeHtml}
+          <div class="del-btn" onclick="event.stopPropagation();confirmDelete('${r.id}')" style="font-size:18px;">×</div>
+        </div>`
+      }).join('')}
+    </div>`
+  // 滚动到详情
+  setTimeout(() => detail.scrollIntoView({ behavior:'smooth', block:'nearest' }), 100)
+}
+
+// ═══════════════════════════════════════════════════
+// 历史页
+// ═══════════════════════════════════════════════════
+function renderHistory() {
+  // 初始化日历为当前月
+  calYear = new Date().getFullYear()
+  calMonth = new Date().getMonth()
+  renderCalendar()
+  loadHealthTip()
+
+  const records = getRecords()
+  const el = document.getElementById('history-content')
+  if (records.length === 0) {
+    el.innerHTML = '<div style="padding:32px 0 8px;text-align:center;color:var(--muted);font-size:14px;">暂无记录，快去记录第一次吧</div>'
+    return
+  }
+  const today = todayStr()
+  const yesterday = offsetDate(today,-1)
+  const groups = {}
+  records.forEach(r => { if(!groups[r.date]) groups[r.date]=[]; groups[r.date].push(r) })
+
+  el.innerHTML = Object.keys(groups).sort((a,b)=>b.localeCompare(a)).map(date => {
+    const label = date===today?'今天':date===yesterday?'昨天':date.slice(5).replace('-','/')
+    const recs = groups[date]
+    return `<div class="date-group">
+      <div class="date-header">
+        <span class="date-label">${label}</span>
+        <span class="date-count">${recs.length} 次</span>
+      </div>
+      <div class="card" style="padding:0 16px;">
+        ${recs.map((r,i) => {
+          const b = BRISTOL.find(b=>b.type===r.bristolType)
+          const rating = r.aiAnalysis?.rating
+          const dotClass = ['excellent','good'].includes(rating)?'dot-good':rating==='attention'?'dot-warn':'dot-neutral'
+          const badgeHtml = rating?`<span class="badge badge-${['excellent','good'].includes(rating)?'good':rating==='attention'?'warn':'danger'}">${AI_RATINGS[rating]?.label}</span>`:''
+          return `<div class="history-item ${i===recs.length-1?'':''}">
+            <div class="record-dot ${dotClass}" onclick="openAnalysis('${r.id}','history')" title="${BRISTOL.find(b=>b.type===r.bristolType)?.name||''}">${(BRISTOL.find(b=>b.type===r.bristolType)?.name||'').slice(0,2)}</div>
+            <div style="flex:1;" onclick="openAnalysis('${r.id}','history')">
+              <div class="record-main">${b?.name||''} · ${r.location||''}</div>
+              <div class="record-sub">${r.time}${r.color?' · '+r.color:''}${r.feelings?.length?' · '+r.feelings.join('/'):''}  </div>
+            </div>
+            ${badgeHtml}
+            <div class="del-btn" onclick="confirmDelete('${r.id}')">×</div>
+          </div>`
+        }).join('')}
+      </div>
+    </div>`
+  }).join('')
+}
+
+function confirmDelete(id) {
+  if (confirm('确定删除这条记录吗？')) {
+    deleteRecord(id)
+    calSelectedDate = null
+    document.getElementById('cal-day-detail').style.display = 'none'
+    renderHistory()
+  }
+}
+
+
+// ═══════════════════════════════════════════════════
+// 健康小知识
+// ═══════════════════════════════════════════════════
+const HEALTH_TIP_TOPICS = [
+  '每天喝足够的水对肠道健康的影响',
+  '膳食纤维与排便规律的关系',
+  '益生菌和肠道菌群健康',
+  '运动如何促进肠道蠕动',
+  '压力和情绪对肠道的影响',
+  '早上排便习惯的养成方法',
+  '哪些食物容易导致便秘',
+  '腹式呼吸与肠道放松',
+  '排便姿势对健康的影响',
+  '咖啡因对肠道的作用'
+]
+
+let tipLoaded = false
+let tipWeekKey = ''
+
+async function loadHealthTip() {
+  // 每周只生成一次，缓存在 localStorage
+  const now = new Date()
+  const weekKey = `${now.getFullYear()}-W${Math.ceil(now.getDate()/7)}`
+
+  const cached = localStorage.getItem('health_tip_' + weekKey)
+  if (cached) {
+    try {
+      const tip = JSON.parse(cached)
+      renderHealthTip(tip)
+      return
+    } catch(e) {}
+  }
+
+  // 随机选一个话题
+  const topic = HEALTH_TIP_TOPICS[Math.floor(Math.random() * HEALTH_TIP_TOPICS.length)]
+  await fetchHealthTip(topic, weekKey)
+}
+
+async function refreshHealthTip() {
+  const topic = HEALTH_TIP_TOPICS[Math.floor(Math.random() * HEALTH_TIP_TOPICS.length)]
+  const weekKey = 'manual_' + Date.now()
+  await fetchHealthTip(topic, weekKey)
+}
+
+async function fetchHealthTip(topic, cacheKey) {
+  // 显示加载状态
+  document.getElementById('health-tip-title').textContent = ''
+  document.getElementById('health-tip-body').textContent = ''
+  document.getElementById('health-tip-loading').style.display = 'flex'
+  document.getElementById('tip-refresh-btn').style.pointerEvents = 'none'
+
+  const _unused = null
+  if (false) { // 已改用后端代理，不需要前端Key
+    const presets = [
+      { icon:'💧', title:'每天喝够8杯水', body:'充足的水分能软化粪便，促进肠道蠕动。早晨起床后空腹喝一杯温水，是激活肠道的最好方法。建议每天摄入 1.5-2L 水，夏季或运动后适量增加。' },
+      { icon:'🥦', title:'膳食纤维是肠道的"扫帚"', body:'每天摄入 25-30g 膳食纤维，能帮助粪便成形、加速肠道通过时间。燕麦、红薯、豆类、绿叶蔬菜都是优质来源，建议每餐都有蔬菜。' },
+      { icon:'🚶', title:'饭后散步10分钟', body:'饭后适量步行能促进胃肠蠕动，加速食物消化。研究表明，餐后15分钟内进行轻度活动，可以减少便秘风险，改善血糖控制。' },
+      { icon:'🧘', title:'压力是便秘的隐形元凶', body:'肠道有"第二大脑"之称，情绪紧张会直接影响肠道功能。长期压力可能导致肠易激综合征。每天花10分钟深呼吸或冥想，有助于改善肠道状态。' },
+      { icon:'⏰', title:'固定排便时间', body:'建立固定的排便时间（通常是早餐后），利用胃结肠反射规律，能有效训练肠道形成规律。即使没有便意也坐5分钟，长期坚持效果显著。' },
+      { icon:'🌙', title:'睡眠影响肠道菌群', body:'研究发现，睡眠不足7小时会破坏肠道菌群平衡，导致消化功能下降。保持规律的睡眠时间，有助于维持健康的肠道环境和正常排便节律。' },
+      { icon:'🍵', title:'温水比冷水更护肠', body:'清晨一杯温水能温和刺激肠道蠕动，效果优于冷水。冷水可能导致肠道痉挛，而温水（38-40℃）能舒张肠道平滑肌，帮助排便更顺畅。' }
+    ]
+    // 换一条时避免重复显示同一条
+    const currentTitle = document.getElementById('health-tip-title').textContent
+    let tip
+    do { tip = presets[Math.floor(Math.random() * presets.length)] } while (tip.title === currentTitle && presets.length > 1)
+    renderHealthTip(tip)
+    document.getElementById('tip-refresh-btn').style.pointerEvents = 'auto'
+    return
+  }
+
+  try {
+    const resp = await fetch(AI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        max_tokens: 300,
+        messages: [
+          { role: 'system', content: '你是肠道健康科普作家。用简洁有趣的方式介绍一个健康知识点。输出严格JSON，不加任何额外字符：{"icon":"一个相关emoji","title":"10字以内的标题","body":"80-100字的正文，实用具体"}' },
+          { role: 'user', content: `请介绍：${topic}` }
+        ]
+      })
+    })
+    if (!resp.ok) throw new Error('API error')
+    const data = await resp.json()
+    const text = (data.choices[0].message.content || '').replace(/```json|```/g,'').trim()
+    const tip = JSON.parse(text)
+    localStorage.setItem('health_tip_' + cacheKey, JSON.stringify(tip))
+    renderHealthTip(tip)
+  } catch(e) {
+    // fallback
+    renderHealthTip({ icon:'🌿', title:'规律作息助力肠道健康', body:'保持规律的睡眠和饮食时间，能帮助建立稳定的肠道生物钟。每天在相同时间吃饭、休息，肠道会逐渐形成规律，排便也会更顺畅。' })
+  } finally {
+    document.getElementById('tip-refresh-btn').style.pointerEvents = 'auto'
+  }
+}
+
+function renderHealthTip(tip) {
+  document.getElementById('health-tip-loading').style.display = 'none'
+  document.getElementById('health-tip-icon').textContent = tip.icon || '🌿'
+  document.getElementById('health-tip-title').textContent = tip.title || ''
+  document.getElementById('health-tip-body').textContent = tip.body || ''
+}
+
+// ═══════════════════════════════════════════════════
+// 我的页
+// ═══════════════════════════════════════════════════
+function renderProfile() {
+  const records = getRecords()
+  document.getElementById('total-count').textContent = records.length
+  const s = getSettings()
+  const toggle = document.getElementById('reminder-toggle')
+  if (s.reminderEnabled) { toggle.classList.add('on') } else { toggle.classList.remove('on') }
+  document.getElementById('reminder-time-row').style.display = s.reminderEnabled ? 'flex' : 'none'
+  if (s.reminderTime) document.getElementById('reminder-time').value = s.reminderTime
+}
+
+function toggleReminder() {
+  const s = getSettings()
+  const enabled = !s.reminderEnabled
+  saveSettings({ reminderEnabled: enabled })
+  if (enabled) {
+    Notification.requestPermission().then(p => {
+      const tip = document.getElementById('reminder-tip')
+      tip.style.display = p !== 'granted' ? 'block' : 'none'
+      scheduleReminder()
+    })
+  } else {
+    if (reminderInterval) { clearInterval(reminderInterval); reminderInterval = null }
+  }
+  renderProfile()
+}
+
+function saveReminderTime() {
+  const t = document.getElementById('reminder-time').value
+  saveSettings({ reminderTime: t })
+  scheduleReminder()
+}
+
+function scheduleReminder() {
+  if (reminderInterval) clearInterval(reminderInterval)
+  const s = getSettings()
+  if (!s.reminderEnabled || !s.reminderTime) return
+  reminderInterval = setInterval(() => {
+    const now = new Date()
+    const hm = now.toTimeString().slice(0,5)
+    if (hm === s.reminderTime) {
+      const today = todayStr()
+      const records = getRecords()
+      const hasDone = records.some(r => r.date === today)
+      if (!hasDone && Notification.permission === 'granted') {
+        new Notification('拉屎日记', { body: '今天还没有记录，记得拉完记一下！' })
+      }
+    }
+  }, 30000)
+}
+
+function exportCSV() {
+  const records = getRecords()
+  if (records.length === 0) { alert('还没有记录'); return }
+  const header = '日期,时间,形态,地点,颜色,气味,时长(分钟),感受,备注,AI评级'
+  const rows = records.map(r => [
+    r.date, r.time, `Type${r.bristolType}`,
+    r.location||'', r.color||'', r.smell||'',
+    r.duration||'', (r.feelings||[]).join(';'),
+    (r.notes||'').replace(/,/g,'，'),
+    r.aiAnalysis?.rating||''
+  ].join(','))
+  const csv = '\uFEFF' + [header,...rows].join('\n')
+  const a = document.createElement('a')
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
+  a.download = `拉屎日记_${todayStr()}.csv`
+  a.click()
+}
+
+function clearData() {
+  if (confirm('确定清除所有记录吗？此操作不可恢复。')) {
+    localStorage.removeItem('poop_records')
+    renderProfile()
+    alert('已清除')
+  }
+}
+
+function showPrivacy() {
+  alert('本网站所有数据仅存储在你的浏览器本地（localStorage），不上传任何服务器，不收集个人信息。AI 分析通过你自己的 Anthropic API Key 调用，与本站无关。')
+}
+
+// ═══════════════════════════════════════════════════
+// 布里斯托插图 SVG
+// ═══════════════════════════════════════════════════
+function bristolSVG(type) {
+  const svgs = {
+    1: `<svg width="52" height="40" viewBox="0 0 52 40"><circle cx="10" cy="26" r="7" fill="#7A5A4A"/><circle cx="26" cy="20" r="9" fill="#6B4D3E"/><circle cx="42" cy="26" r="7" fill="#7A5A4A"/><circle cx="18" cy="33" r="5.5" fill="#8A6A5A"/><circle cx="35" cy="33" r="5.5" fill="#8A6A5A"/></svg>`,
+    2: `<svg width="52" height="40" viewBox="0 0 52 40"><rect x="4" y="14" width="44" height="16" rx="8" fill="#6B4D3E"/><ellipse cx="12" cy="14" rx="4" ry="3.5" fill="#7A5A4A"/><ellipse cx="22" cy="11" rx="5" ry="4" fill="#7A5A4A"/><ellipse cx="33" cy="13" rx="4" ry="3.5" fill="#7A5A4A"/><ellipse cx="42" cy="14" rx="3.5" ry="3" fill="#7A5A4A"/><ellipse cx="17" cy="29" rx="4" ry="2.5" fill="#5A3D30"/><ellipse cx="31" cy="30" rx="5" ry="2.5" fill="#5A3D30"/><ellipse cx="43" cy="29" rx="3.5" ry="2.5" fill="#5A3D30"/></svg>`,
+    3: `<svg width="52" height="40" viewBox="0 0 52 40"><rect x="4" y="14" width="44" height="16" rx="8" fill="#7A5A4A"/><line x1="12" y1="17" x2="16" y2="27" stroke="#5A3D30" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="15" x2="25" y2="29" stroke="#5A3D30" stroke-width="1.5" stroke-linecap="round"/><line x1="32" y1="15" x2="35" y2="29" stroke="#5A3D30" stroke-width="1.5" stroke-linecap="round"/><line x1="40" y1="17" x2="43" y2="27" stroke="#5A3D30" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+    4: `<svg width="52" height="40" viewBox="0 0 52 40"><path d="M4 22 Q14 10 26 13 Q38 16 48 22 Q38 32 26 30 Q14 28 4 22Z" fill="#CA7842"/><ellipse cx="26" cy="22" rx="17" ry="7.5" fill="#B8663A"/><ellipse cx="26" cy="21" rx="13" ry="5" fill="#CA7842"/></svg>`,
+    5: `<svg width="52" height="40" viewBox="0 0 52 40"><rect x="4" y="14" width="16" height="13" rx="4" fill="#B2CD9C"/><rect x="24" y="11" width="14" height="15" rx="4" fill="#9EBE88"/><rect x="40" y="15" width="10" height="12" rx="3.5" fill="#B2CD9C"/><rect x="10" y="28" width="14" height="10" rx="3.5" fill="#9EBE88"/><rect x="28" y="28" width="16" height="9" rx="3.5" fill="#B2CD9C"/></svg>`,
+    6: `<svg width="52" height="40" viewBox="0 0 52 40"><path d="M4 30 Q10 20 16 26 Q22 14 28 22 Q34 12 40 20 Q46 14 50 22 Q48 34 26 36 Q6 37 4 30Z" fill="#F0F2BD"/><path d="M8 28 Q14 18 20 24 Q26 14 32 20 Q38 12 44 20" fill="none" stroke="#D4D68A" stroke-width="1" stroke-linecap="round"/></svg>`,
+    7: `<svg width="52" height="40" viewBox="0 0 52 40"><ellipse cx="26" cy="26" rx="20" ry="8" fill="#CA784218"/><path d="M6 18 Q14 13 22 17 Q30 12 38 16 Q44 12 48 17" fill="none" stroke="#CA7842" stroke-width="1.8" stroke-linecap="round"/><path d="M4 24 Q12 19 20 23 Q28 18 36 22 Q42 18 50 22" fill="none" stroke="#B8663A" stroke-width="1.4" stroke-linecap="round"/><path d="M8 30 Q16 25 24 29 Q32 24 40 28 Q46 24 50 28" fill="none" stroke="#CA784255" stroke-width="1" stroke-linecap="round"/></svg>`
+  }
+  return svgs[type] || ''
+}
+
+// ═══════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  renderHome()
+  scheduleReminder()
+})
+</script>
+</body>
+</html>
