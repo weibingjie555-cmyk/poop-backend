@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="拉屎日记">
 <link rel="manifest" href="/manifest.json">
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <meta name="theme-color" content="#4B352A">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>拉屎日记</title>
@@ -476,33 +475,7 @@ input, textarea, select { font-family: inherit; outline: none; border: none; bac
   <!-- ═══ 我的页 ════════════════════════════ -->
   <div id="page-profile" class="page">
     <div class="navbar"><span class="navbar-title">我的</span></div>
-    <!-- 未登录状态 -->
-    <div id="profile-unauth" style="display:none;padding:32px 32px 0;">
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="width:72px;height:72px;border-radius:50%;background:var(--or-l);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:36px;">💩</div>
-        <div style="font-size:18px;font-weight:500;color:var(--br);">登录后数据云端同步</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:6px;">换设备也不丢失记录</div>
-      </div>
-      <div style="display:flex;background:var(--br-l);border-radius:12px;padding:3px;margin-bottom:20px;">
-        <div id="tab-login" onclick="switchAuthTab('login')" style="flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--bg);font-size:14px;font-weight:500;color:var(--br);cursor:pointer;">登录</div>
-        <div id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;text-align:center;padding:8px;border-radius:10px;font-size:14px;color:var(--muted);cursor:pointer;">注册</div>
-      </div>
-      <div style="margin-bottom:14px;">
-        <div style="font-size:13px;color:var(--br-m);margin-bottom:6px;">邮箱</div>
-        <input id="auth-email" type="email" placeholder="请输入邮箱" style="width:100%;padding:13px 16px;border-radius:12px;background:var(--bg);font-size:15px;color:var(--br);border:none;outline:none;"/>
-      </div>
-      <div style="margin-bottom:20px;">
-        <div style="font-size:13px;color:var(--br-m);margin-bottom:6px;">密码</div>
-        <input id="auth-password" type="password" placeholder="请输入密码（至少6位）" style="width:100%;padding:13px 16px;border-radius:12px;background:var(--bg);font-size:15px;color:var(--br);border:none;outline:none;"/>
-      </div>
-      <button id="auth-btn" class="btn-primary" onclick="handleAuth()">登录</button>
-      <div id="auth-error" style="margin-top:10px;text-align:center;font-size:13px;color:var(--danger);display:none;"></div>
-      <div id="auth-success" style="margin-top:10px;text-align:center;font-size:13px;color:#2A3D1E;display:none;"></div>
-      <div style="height:20px;"></div>
-    </div>
-
-    <!-- 已登录状态 -->
-    <div id="profile-auth">
+    <div class="profile-header">
     <div class="profile-header">
       <div class="avatar">我</div>
       <div>
@@ -551,7 +524,6 @@ input, textarea, select { font-family: inherit; outline: none; border: none; bac
       </div>
     </div>
     <div style="height:20px;"></div>
-    </div><!-- /profile-auth -->
   </div>
 
   <!-- ═══ tabbar ═══════════════════════════ -->
@@ -611,14 +583,6 @@ const AI_RATINGS = {
   warning:{label:'警告', bg:'#FAE8D6'}
 }
 const AI_ENDPOINT = 'https://poop-backend-three.vercel.app/api/ai'
-const SUPABASE_URL = 'https://ocsdoplpbxsdzxxpuvek.sbClient.co'
-const SUPABASE_KEY = 'sb_publishable_FsJMRlfSDl8zAK3_P94Zgw_dvRFW4RX'
-let sbClient = null
-let currentUser = null
-
-function initSupabase() {
-  sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-}
 
 // ═══════════════════════════════════════════════════
 // 状态
@@ -644,7 +608,6 @@ function addRecord(rec) {
   records.unshift(rec)
   saveRecords(records)
   syncRecordToIDB(rec)
-  saveRecordToCloud(rec)
   return rec
 }
 
@@ -661,7 +624,6 @@ function syncRecordToIDB(rec) {
 }
 function deleteRecord(id) {
   saveRecords(getRecords().filter(r => r.id !== id))
-  deleteRecordFromCloud(id)
 }
 function getSettings() {
   try { return JSON.parse(localStorage.getItem('poop_settings') || '{}') } catch { return {} }
@@ -995,7 +957,6 @@ async function renderAnalysis(id, isNew=false) {
     if (target) {
       target.aiAnalysis = analysis
       saveRecords(allRecs)
-      saveRecordToCloud(target)
     }
     renderAnalysisResult({...rec, aiAnalysis: analysis}, b)
   } catch(err) {
@@ -1421,10 +1382,8 @@ function renderHealthTip(tip) {
 // 我的页
 // ═══════════════════════════════════════════════════
 function renderProfile() {
-  updateProfileAuthState()
   const records = getRecords()
-  const totalEl = document.getElementById('total-count')
-  if (totalEl) totalEl.textContent = records.length
+  document.getElementById('total-count').textContent = records.length
   const s = getSettings()
   const toggle = document.getElementById('reminder-toggle')
   if (s.reminderEnabled) { toggle.classList.add('on') } else { toggle.classList.remove('on') }
@@ -1559,78 +1518,8 @@ function bristolSVG(type) {
 // ═══════════════════════════════════════════════════
 let authMode = 'login'
 
-function switchAuthTab(mode) {
-  authMode = mode
-  const isLogin = mode === 'login'
-  document.getElementById('tab-login').style.cssText = isLogin
-    ? 'flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--bg);font-size:14px;font-weight:500;color:var(--br);cursor:pointer;'
-    : 'flex:1;text-align:center;padding:8px;border-radius:10px;font-size:14px;color:var(--muted);cursor:pointer;'
-  document.getElementById('tab-signup').style.cssText = !isLogin
-    ? 'flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--bg);font-size:14px;font-weight:500;color:var(--br);cursor:pointer;'
-    : 'flex:1;text-align:center;padding:8px;border-radius:10px;font-size:14px;color:var(--muted);cursor:pointer;'
-  document.getElementById('auth-btn').textContent = isLogin ? '登录' : '注册'
-  document.getElementById('auth-error').style.display = 'none'
-  document.getElementById('auth-success').style.display = 'none'
-}
 
-async function handleAuth() {
-  const email = document.getElementById('auth-email').value.trim()
-  const password = document.getElementById('auth-password').value
-  const errEl = document.getElementById('auth-error')
-  const sucEl = document.getElementById('auth-success')
-  const btn = document.getElementById('auth-btn')
 
-  errEl.style.display = 'none'
-  sucEl.style.display = 'none'
-
-  if (!email || !password) {
-    errEl.textContent = '请填写邮箱和密码'
-    errEl.style.display = 'block'
-    return
-  }
-  if (password.length < 6) {
-    errEl.textContent = '密码至少6位'
-    errEl.style.display = 'block'
-    return
-  }
-
-  btn.textContent = '请稍候...'
-  btn.disabled = true
-
-  try {
-    let result
-    if (authMode === 'login') {
-      result = await sbClient.auth.signInWithPassword({ email, password })
-    } else {
-      result = await sbClient.auth.signUp({ email, password })
-    }
-
-    if (result.error) {
-      errEl.textContent = translateAuthError(result.error.message)
-      errEl.style.display = 'block'
-    } else if (authMode === 'signup' && !result.data.session) {
-      sucEl.textContent = '注册成功！请检查邮箱验证链接后登录'
-      sucEl.style.display = 'block'
-    } else {
-      currentUser = result.data.user
-      await enterApp()
-    }
-  } catch(e) {
-    errEl.textContent = '网络错误，请重试'
-    errEl.style.display = 'block'
-  } finally {
-    btn.textContent = authMode === 'login' ? '登录' : '注册'
-    btn.disabled = false
-  }
-}
-
-function translateAuthError(msg) {
-  if (msg.includes('Invalid login')) return '邮箱或密码错误'
-  if (msg.includes('Email not confirmed')) return '请先验证邮箱'
-  if (msg.includes('User already registered')) return '该邮箱已注册，请直接登录'
-  if (msg.includes('Password should be')) return '密码至少6位'
-  return msg
-}
 
 async function enterApp() {
   await syncFromCloud()
@@ -1639,103 +1528,8 @@ async function enterApp() {
   switchTab('home')
 }
 
-function updateProfileAuthState() {
-  const unauth = document.getElementById('profile-unauth')
-  const auth = document.getElementById('profile-auth')
-  if (!unauth || !auth) return
-  if (currentUser) {
-    unauth.style.display = 'none'
-    auth.style.display = 'block'
-    const emailEl = document.querySelector('.profile-name')
-    if (emailEl) emailEl.textContent = currentUser.email.split('@')[0]
-  } else {
-    unauth.style.display = 'block'
-    auth.style.display = 'none'
-  }
-}
-
-async function syncFromCloud() {
-  if (!currentUser || !supabase) return
-  try {
-    const { data, error } = await supabase
-      .from('poop_records')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false })
-
-    if (error || !data) return
-
-    // 转换字段名并存本地
-    const records = data.map(r => ({
-      id: r.id,
-      createdAt: new Date(r.created_at).getTime(),
-      date: r.date,
-      time: r.time,
-      bristolType: r.bristol_type,
-      bristolTypeName: BRISTOL.find(b => b.type === r.bristol_type)?.name || '',
-      location: r.location,
-      color: r.color,
-      smell: r.smell,
-      duration: r.duration,
-      feelings: r.feelings ? r.feelings.split(',') : [],
-      notes: r.notes,
-      aiAnalysis: r.ai_analysis
-    }))
-    saveRecords(records)
-  } catch(e) {
-    console.error('sync error:', e)
-  }
-}
-
-async function saveRecordToCloud(rec) {
-  if (!currentUser || !supabase) return
-  try {
-    await sbClient.from('poop_records').upsert({
-      id: rec.id,
-      user_id: currentUser.id,
-      date: rec.date,
-      time: rec.time,
-      bristol_type: rec.bristolType,
-      location: rec.location,
-      color: rec.color,
-      smell: rec.smell,
-      duration: rec.duration,
-      feelings: rec.feelings?.join(',') || '',
-      notes: rec.notes,
-      ai_analysis: rec.aiAnalysis || null
-    })
-  } catch(e) {
-    console.error('save to cloud error:', e)
-  }
-}
-
-async function deleteRecordFromCloud(id) {
-  if (!currentUser || !supabase) return
-  try {
-    await sbClient.from('poop_records').delete().eq('id', id).eq('user_id', currentUser.id)
-  } catch(e) {
-    console.error('delete from cloud error:', e)
-  }
-}
-
-async function handleLogout() {
-  await sbClient.auth.signOut()
-  currentUser = null
-  localStorage.removeItem('poop_records')
-  location.reload()
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-  initSupabase()
-
-  // 检查登录状态
-  const { data: { session } } = await sbClient.auth.getSession()
-  if (session) {
-    currentUser = session.user
-    await syncFromCloud()
-  }
+document.addEventListener('DOMContentLoaded', () => {
   renderHome()
-  updateProfileAuthState()
 
   // 注册 Service Worker
   if ('serviceWorker' in navigator) {
