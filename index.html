@@ -605,7 +605,20 @@ function addRecord(rec) {
   const records = getRecords()
   records.unshift(rec)
   saveRecords(records)
+  syncRecordToIDB(rec)
   return rec
+}
+
+function syncRecordToIDB(rec) {
+  try {
+    const req = indexedDB.open('poop_sw_db', 1)
+    req.onupgradeneeded = e => e.target.result.createObjectStore('records', { keyPath: 'id' })
+    req.onsuccess = e => {
+      const db = e.target.result
+      const tx = db.transaction('records', 'readwrite')
+      tx.objectStore('records').put({ id: rec.id, date: rec.date })
+    }
+  } catch(e) { console.log('IDB sync:', e) }
 }
 function deleteRecord(id) {
   saveRecords(getRecords().filter(r => r.id !== id))
@@ -1380,6 +1393,10 @@ async function toggleReminder() {
     await subscribePush()
   } else {
     saveSettings({ reminderEnabled: false })
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready
+      reg.active?.postMessage({ type: 'SET_REMINDER', time: '', enabled: false })
+    }
     showReminderTip('提醒已关闭', false)
   }
   renderProfile()
@@ -1388,22 +1405,20 @@ async function toggleReminder() {
 async function saveReminderTime() {
   const t = document.getElementById('reminder-time').value
   saveSettings({ reminderTime: t })
-  // 重新订阅更新时间
   const s = getSettings()
-  if (s.reminderEnabled) await subscribePush()
+  if (s.reminderEnabled) {
+    const reg = await navigator.serviceWorker.ready
+    reg.active?.postMessage({ type: 'SET_REMINDER', time: t, enabled: true })
+    showReminderTip('✓ 提醒已更新为每天 ' + t, false)
+  }
 }
 
 async function subscribePush() {
-  const tip = document.getElementById('reminder-tip')
   try {
-    // 注册 Service Worker
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      showReminderTip('你的浏览器不支持推送通知', true)
+    if (!('serviceWorker' in navigator)) {
+      showReminderTip('你的浏览器不支持后台提醒', true)
       return
     }
-    const reg = await navigator.serviceWorker.register('/sw.js')
-    await navigator.serviceWorker.ready
-
     // 请求通知权限
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
@@ -1411,34 +1426,14 @@ async function subscribePush() {
       return
     }
 
-    // 获取 VAPID 公钥
-    const keyResp = await fetch(AI_ENDPOINT.replace('/api/ai', '/api/push/vapid'))
-    const { publicKey } = await keyResp.json()
-
-    // 订阅推送
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey)
-    })
-
-    // 生成用户唯一ID
-    let userId = localStorage.getItem('poop_user_id')
-    if (!userId) {
-      userId = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2)
-      localStorage.setItem('poop_user_id', userId)
-    }
-
+    const reg = await navigator.serviceWorker.ready
     const t = document.getElementById('reminder-time')?.value || '08:00'
 
-    // 发送订阅到服务器
-    await fetch(AI_ENDPOINT.replace('/api/ai', '/api/push/subscribe'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription, reminderTime: t, userId })
-    })
+    // 通知 SW 设置定时提醒
+    reg.active?.postMessage({ type: 'SET_REMINDER', time: t, enabled: true })
 
     saveSettings({ reminderEnabled: true, reminderTime: t })
-    showReminderTip('✓ 提醒已开启，每天 ' + t + ' 推送', false)
+    showReminderTip('✓ 提醒已开启，每天 ' + t + ' 提醒', false)
   } catch(e) {
     console.error(e)
     showReminderTip('开启失败：' + e.message, true)
@@ -1515,9 +1510,15 @@ function bristolSVG(type) {
 // ═══════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   renderHome()
-  // 注册 Service Worker
+  // 注册 Service Worker，并恢复提醒设置
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW:', e))
+    navigator.serviceWorker.register('/sw.js').then(async () => {
+      const s = getSettings()
+      if (s.reminderEnabled && s.reminderTime) {
+        const reg = await navigator.serviceWorker.ready
+        reg.active?.postMessage({ type: 'SET_REMINDER', time: s.reminderTime, enabled: true })
+      }
+    }).catch(e => console.log('SW:', e))
   }
 })
 </script>
